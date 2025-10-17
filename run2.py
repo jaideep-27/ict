@@ -1818,16 +1818,37 @@ elif data_type == "📖 Story Analysis":
             from collections import Counter
             import re
             
-            # Download required NLTK data
-            try:
-                nltk.data.find('tokenizers/punkt')
-            except LookupError:
-                with st.spinner("Downloading NLTK data..."):
-                    nltk.download('punkt', quiet=True)
-                    nltk.download('averaged_perceptron_tagger', quiet=True)
-                    nltk.download('maxent_ne_chunker', quiet=True)
-                    nltk.download('words', quiet=True)
-                    nltk.download('stopwords', quiet=True)
+            # Download required NLTK data with fallback
+            with st.spinner("Checking NLTK data..."):
+                try:
+                    # Try punkt_tab first (newer NLTK), fallback to punkt (older NLTK)
+                    try:
+                        nltk.data.find('tokenizers/punkt_tab')
+                    except LookupError:
+                        try:
+                            nltk.download('punkt_tab', quiet=True)
+                        except:
+                            try:
+                                nltk.download('punkt', quiet=True)
+                            except:
+                                st.warning("Could not download punkt tokenizer. Some features may not work.")
+                    
+                    # Download other required data with error handling
+                    required_data = [
+                        'averaged_perceptron_tagger',
+                        'maxent_ne_chunker',
+                        'words',
+                        'stopwords'
+                    ]
+                    
+                    for package in required_data:
+                        try:
+                            nltk.download(package, quiet=True)
+                        except:
+                            pass  # Continue even if some packages fail
+                            
+                except Exception as e:
+                    st.warning(f"Some NLTK data could not be downloaded. Analysis may be limited.")
             
             from nltk.corpus import stopwords
             from nltk.tokenize import word_tokenize, sent_tokenize
