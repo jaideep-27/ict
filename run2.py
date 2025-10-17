@@ -152,7 +152,7 @@ with st.sidebar:
     st.header("📂 Data Type")
     data_type = st.radio(
         "Select analysis type:",
-        ["🎥 Video Analysis", "📝 Text Analysis", "🎵 Audio Analysis", "🖼️ Image Analysis"]
+        ["🎥 Video Analysis", "📝 Text Analysis", "🎵 Audio Analysis", "🖼️ Image Analysis", "📖 Story Analysis"]
     )
     st.markdown("---")
     st.caption("Upload your unstructured data for comprehensive analysis.")
@@ -1207,7 +1207,8 @@ elif data_type == "🖼️ Image Analysis":
         from PIL import Image
         import cv2
         from rembg import remove
-        from skimage import filters, feature, color, exposure
+        from skimage import filters, feature, exposure
+        from skimage.color import rgb2gray
         import matplotlib.pyplot as plt
         
         image = Image.open(image_path)
@@ -1364,10 +1365,41 @@ elif data_type == "🖼️ Image Analysis":
                             )
                         
                     except Exception as e:
-                        st.error(f"❌ Error during background removal: {str(e)}")
+                        error_msg = str(e)
+                        st.error(f"❌ Error during background removal: {error_msg}")
+                        
+                        # Check if it's a network/download error
+                        if "HTTPSConnectionPool" in error_msg or "Failed to resolve" in error_msg or "NameResolutionError" in error_msg:
+                            st.warning("⚠️ **Network Error**: Cannot download the U^2-Net model.")
+                            st.info("""
+                            **Possible Solutions:**
+                            
+                            1. **Check Internet Connection**: Ensure you're connected to the internet
+                            2. **Wait and Retry**: GitHub servers might be temporarily unavailable
+                            3. **Manual Download** (if network issues persist):
+                               ```bash
+                               # Create model directory
+                               mkdir -p ~/.u2net
+                               
+                               # Download model manually (176 MB)
+                               wget https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx -O ~/.u2net/u2net.onnx
+                               ```
+                            4. **Use VPN/Proxy**: If GitHub is blocked in your network
+                            5. **Try Later**: The model downloads automatically on first use
+                            """)
+                        else:
+                            st.info("💡 Try with a different image or check the error details above.")
             
             st.markdown("---")
             st.info("💡 **Tip:** The AI model works best with clear subjects and good lighting.")
+            
+            # Model status check
+            import os.path
+            model_path = os.path.expanduser("~/.u2net/u2net.onnx")
+            if os.path.exists(model_path):
+                st.success(f"✅ U^2-Net model is installed (~176 MB)")
+            else:
+                st.warning("⚠️ U^2-Net model not yet downloaded. Will download on first use (~176 MB).")
         
         # Tab 3: Face Analysis (using DeepFace)
         with tabs[2]:
@@ -1445,23 +1477,57 @@ elif data_type == "🖼️ Image Analysis":
             
             if st.button("🎯 Detect Edges", key="detect_edges"):
                 with st.spinner(f"Applying {edge_method} edge detection..."):
-                    gray = color.rgb2gray(img_array) if len(img_array.shape) == 3 else img_array
-                    
+                    # Ensure grayscale is a float image in [0,1]
+                    if len(img_array.shape) == 3:
+                        gray = rgb2gray(img_array)
+                    else:
+                        # If already single channel, convert to float in [0,1]
+                        gray = img_array.astype('float32')
+                        if gray.max() > 1.0:
+                            gray = gray / 255.0
+
+                    # Apply chosen edge detector
                     if edge_method == "Canny":
-                        edges = feature.canny(gray, sigma=2)
+                        # skimage.feature.canny expects a float image in [0,1]
+                        edges_bool = feature.canny(gray, sigma=2)
+                        # If skimage produced no edges (sometimes due to scaling), try OpenCV Canny as a fallback
+                        if edges_bool.sum() == 0:
+                            try:
+                                # Convert float gray [0,1] to uint8 0-255
+                                gray_u8 = (np.clip(gray, 0, 1) * 255).astype('uint8')
+                                # Use median to choose thresholds
+                                v = np.median(gray_u8)
+                                lower = int(max(0, 0.66 * v))
+                                upper = int(min(255, 1.33 * v))
+                                edges_cv = cv2.Canny(gray_u8, lower, upper)
+                                edges = edges_cv
+                                # Inform user that OpenCV fallback was used
+                                st.info(f"⚠️ skimage Canny returned no edges; using OpenCV Canny fallback (lower={lower}, upper={upper})")
+                            except Exception:
+                                # Fallback to skimage boolean->uint8 even if empty
+                                edges = (edges_bool.astype('uint8') * 255)
+                        else:
+                            # Convert boolean array to uint8 image for display
+                            edges = (edges_bool.astype('uint8') * 255)
                     elif edge_method == "Sobel":
-                        edges = filters.sobel(gray)
+                        edges_f = filters.sobel(gray)
+                        edges = (np.clip(edges_f, 0, 1) * 255).astype('uint8')
                     elif edge_method == "Prewitt":
-                        edges = filters.prewitt(gray)
+                        edges_f = filters.prewitt(gray)
+                        edges = (np.clip(edges_f, 0, 1) * 255).astype('uint8')
                     elif edge_method == "Roberts":
-                        edges = filters.roberts(gray)
+                        edges_f = filters.roberts(gray)
+                        edges = (np.clip(edges_f, 0, 1) * 255).astype('uint8')
                     elif edge_method == "Scharr":
-                        edges = filters.scharr(gray)
-                    
+                        edges_f = filters.scharr(gray)
+                        edges = (np.clip(edges_f, 0, 1) * 255).astype('uint8')
+
                     col1, col2 = st.columns(2)
                     with col1:
                         st.markdown("**Original (Grayscale)**")
-                        st.image(gray, use_container_width=True, clamp=True)
+                        # Show normalized grayscale (convert back to 0-255 for display)
+                        disp_gray = (np.clip(gray, 0, 1) * 255).astype('uint8')
+                        st.image(disp_gray, use_container_width=True, clamp=True)
                     with col2:
                         st.markdown(f"**{edge_method} Edges**")
                         st.image(edges, use_container_width=True, clamp=True)
@@ -1638,6 +1704,566 @@ elif data_type == "🖼️ Image Analysis":
         - 🎭 Image filters and effects
         - 📊 Advanced quality metrics
         - 📥 Download processed images
+        """)
+
+# -----------------------------------------
+# Story Analysis Section
+# -----------------------------------------
+elif data_type == "📖 Story Analysis":
+    st.subheader("📖 Story Analysis with NLP")
+    
+    # Hardcoded sample stories
+    SAMPLE_STORIES = {
+        "The Lost Key": """
+        Emma woke up to the sound of rain pattering against her window. She had an important meeting at 9 AM, 
+        but something felt off. Reaching for her bag, she realized with horror that her office key was missing. 
+        Panic set in as she frantically searched every pocket, every drawer, every corner of her apartment. 
+        
+        After thirty minutes of desperate searching, she decided to retrace her steps from yesterday. 
+        The coffee shop! She had stopped there after work. With renewed hope, Emma grabbed her coat and 
+        rushed out into the rain. The barista smiled when she walked in, holding up a small silver key. 
+        "Looking for this?" he asked. Emma's relief was overwhelming. Sometimes, the things we lose find 
+        their way back to us when we least expect it.
+        """,
+        
+        "The Garden": """
+        Old Mr. Chen had tended his garden for forty years. Every morning at dawn, he would walk among 
+        the roses, tomatoes, and herbs, speaking to them like old friends. His neighbors thought him eccentric, 
+        but they couldn't deny the magic of his garden. The flowers bloomed brighter, the vegetables grew 
+        larger, and the air always smelled of jasmine and mint.
+        
+        When asked about his secret, Mr. Chen would simply smile and say, "Love and patience. The garden 
+        teaches you both." One spring, a young girl moved in next door. She was shy and lonely, struggling 
+        to make friends in the new neighborhood. Mr. Chen invited her to help in the garden. Day by day, 
+        as they planted seeds and pulled weeds together, she began to bloom just like the flowers. 
+        The garden had worked its magic once again.
+        """,
+        
+        "Digital Disconnect": """
+        Sarah realized she hadn't looked at her phone in three days. It started as an accident – her 
+        charger broke during a weekend camping trip. At first, the anxiety was unbearable. What if someone 
+        needed her? What if she missed an important email? But as the hours passed, something unexpected 
+        happened: she felt lighter.
+        
+        Without the constant ping of notifications, she noticed things she'd been missing. The way morning 
+        light filtered through pine trees. The sound of the river, which wasn't a white noise app but actual 
+        water flowing over rocks. Real conversations with friends around a campfire, without anyone checking 
+        their screens. When she returned home and finally charged her phone, the 47 notifications seemed 
+        trivial. She had discovered something more valuable than connectivity: presence.
+        """,
+        
+        "The Last Letter": """
+        When Margaret's grandmother passed away, she left behind a box of letters. Hundreds of them, 
+        spanning seventy years, written in elegant cursive on yellowing paper. Margaret spent weeks reading 
+        them, discovering a woman she never knew existed. Her grandmother had been an artist, a dreamer, 
+        someone who wrote poetry in the margins of recipes and found beauty in ordinary moments.
+        
+        One letter stood out, dated the day Margaret was born. "Today I held my granddaughter for the 
+        first time," it read. "She has my mother's eyes and my stubborn chin. I wonder what kind of woman 
+        she'll become. Will she chase her dreams like I did, or will she be wiser and more cautious? 
+        Either way, I hope she knows she's loved beyond measure." Margaret cried, holding the letter to 
+        her chest. Her grandmother had seen her, really seen her, even as a baby. The letters weren't 
+        just memories – they were a legacy of love.
+        """,
+        
+        "The Coffee Shop Writer": """
+        Every Tuesday at 3 PM, a man in a gray coat would sit at the corner table of the coffee shop, 
+        typing away on an old laptop. The regulars called him "The Writer," though no one knew what he 
+        wrote or if he'd ever been published. He always ordered the same thing: black coffee and a blueberry 
+        muffin. He never spoke to anyone, completely absorbed in his work.
+        
+        One day, a curious barista couldn't help but ask, "What are you writing?" The man looked up, 
+        surprised to be addressed after years of solitary visits. "Love letters," he said quietly. 
+        "To my wife who passed away five years ago. I write her one every week, telling her about my life, 
+        my thoughts, the things I wish I could still share with her." The barista's eyes welled with tears. 
+        "That's beautiful," she whispered. The man smiled sadly. "It keeps her alive in my heart." 
+        From that day on, his coffee and muffin were always on the house.
+        """
+    }
+    
+    # Story selection
+    st.markdown("### Choose a Story to Analyze")
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        story_choice = st.selectbox(
+            "Select a sample story or enter your own:",
+            ["Custom Story"] + list(SAMPLE_STORIES.keys())
+        )
+    
+    with col2:
+        st.metric("Sample Stories", len(SAMPLE_STORIES))
+    
+    # Text input area
+    if story_choice == "Custom Story":
+        story_text = st.text_area(
+            "Enter your story here:",
+            height=300,
+            placeholder="Type or paste your story here for analysis..."
+        )
+    else:
+        story_text = st.text_area(
+            f"Story: {story_choice}",
+            value=SAMPLE_STORIES[story_choice],
+            height=300
+        )
+    
+    if story_text and len(story_text.strip()) > 0:
+        # Download NLTK data if needed
+        try:
+            import nltk
+            from wordcloud import WordCloud
+            from textblob import TextBlob
+            import matplotlib.pyplot as plt
+            from collections import Counter
+            import re
+            
+            # Download required NLTK data
+            try:
+                nltk.data.find('tokenizers/punkt')
+            except LookupError:
+                with st.spinner("Downloading NLTK data..."):
+                    nltk.download('punkt', quiet=True)
+                    nltk.download('averaged_perceptron_tagger', quiet=True)
+                    nltk.download('maxent_ne_chunker', quiet=True)
+                    nltk.download('words', quiet=True)
+                    nltk.download('stopwords', quiet=True)
+            
+            from nltk.corpus import stopwords
+            from nltk.tokenize import word_tokenize, sent_tokenize
+            from nltk import pos_tag, ne_chunk
+            from nltk.tree import Tree
+            
+        except Exception as e:
+            st.error(f"Error loading NLP libraries: {str(e)}")
+            st.stop()
+        
+        # Basic metrics
+        words = word_tokenize(story_text.lower())
+        sentences = sent_tokenize(story_text)
+        word_count = len([w for w in words if w.isalnum()])
+        sentence_count = len(sentences)
+        char_count = len(story_text)
+        avg_word_length = sum(len(w) for w in words if w.isalnum()) / max(word_count, 1)
+        avg_sentence_length = word_count / max(sentence_count, 1)
+        
+        # Display basic metrics
+        st.markdown("---")
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col1:
+            st.metric("Words", f"{word_count:,}")
+        with col2:
+            st.metric("Sentences", sentence_count)
+        with col3:
+            st.metric("Characters", f"{char_count:,}")
+        with col4:
+            st.metric("Avg Word Length", f"{avg_word_length:.1f}")
+        with col5:
+            st.metric("Avg Sentence Length", f"{avg_sentence_length:.1f}")
+        
+        st.markdown("---")
+        
+        # Analysis tabs
+        tabs = st.tabs([
+            "📊 Overview",
+            "☁️ Word Cloud",
+            "💭 Sentiment",
+            "🏷️ Named Entities",
+            "📖 Readability",
+            "🔑 Keywords"
+        ])
+        
+        # Tab 1: Overview
+        with tabs[0]:
+            st.subheader("📊 Story Overview")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Text Statistics**")
+                
+                # Unique words
+                unique_words = len(set([w.lower() for w in words if w.isalnum()]))
+                lexical_diversity = unique_words / max(word_count, 1)
+                
+                st.write(f"**Unique Words:** {unique_words:,}")
+                st.write(f"**Lexical Diversity:** {lexical_diversity:.2%}")
+                st.write(f"**Longest Word:** {max((w for w in words if w.isalnum()), key=len, default='')}")
+                st.write(f"**Shortest Sentence:** {min(sentences, key=len, default='')[:50]}...")
+                st.write(f"**Longest Sentence:** {max(sentences, key=len, default='')[:50]}...")
+            
+            with col2:
+                st.markdown("**Word Frequency (Top 10)**")
+                
+                # Remove stopwords
+                stop_words = set(stopwords.words('english'))
+                filtered_words = [w.lower() for w in words if w.isalnum() and w.lower() not in stop_words and len(w) > 2]
+                word_freq = Counter(filtered_words).most_common(10)
+                
+                for word, count in word_freq:
+                    st.write(f"**{word}:** {count} times")
+            
+            # Sentence length distribution
+            st.markdown("---")
+            st.markdown("**Sentence Length Distribution**")
+            sentence_lengths = [len(word_tokenize(s)) for s in sentences]
+            
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.hist(sentence_lengths, bins=min(20, len(set(sentence_lengths))), color='#388bfd', alpha=0.7, edgecolor='white')
+            ax.set_xlabel('Words per Sentence')
+            ax.set_ylabel('Frequency')
+            ax.set_title('Distribution of Sentence Lengths')
+            ax.set_facecolor('#161b22')
+            fig.patch.set_facecolor('#0d1117')
+            ax.tick_params(colors='white')
+            ax.title.set_color('white')
+            ax.xaxis.label.set_color('white')
+            ax.yaxis.label.set_color('white')
+            for spine in ax.spines.values():
+                spine.set_edgecolor('white')
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close()
+        
+        # Tab 2: Word Cloud
+        with tabs[1]:
+            st.subheader("☁️ Word Cloud Visualization")
+            
+            col1, col2 = st.columns([2, 1])
+            
+            with col2:
+                st.markdown("**Settings**")
+                max_words = st.slider("Max Words", 50, 500, 200)
+                background_color = st.selectbox("Background", ["black", "white"])
+                colormap = st.selectbox("Color Scheme", ["viridis", "plasma", "inferno", "magma", "cool", "hot"])
+            
+            with col1:
+                # Generate word cloud
+                stop_words = set(stopwords.words('english'))
+                
+                wordcloud = WordCloud(
+                    width=800,
+                    height=400,
+                    background_color=background_color,
+                    stopwords=stop_words,
+                    max_words=max_words,
+                    colormap=colormap,
+                    relative_scaling=0.5,
+                    min_font_size=10
+                ).generate(story_text)
+                
+                fig, ax = plt.subplots(figsize=(12, 6))
+                ax.imshow(wordcloud, interpolation='bilinear')
+                ax.axis('off')
+                fig.patch.set_facecolor('#0d1117')
+                plt.tight_layout(pad=0)
+                st.pyplot(fig)
+                plt.close()
+                
+                # Download word cloud
+                wordcloud_path = "temp_wordcloud.png"
+                wordcloud.to_file(wordcloud_path)
+                with open(wordcloud_path, "rb") as file:
+                    st.download_button(
+                        label="📥 Download Word Cloud",
+                        data=file,
+                        file_name="story_wordcloud.png",
+                        mime="image/png"
+                    )
+        
+        # Tab 3: Sentiment Analysis
+        with tabs[2]:
+            st.subheader("💭 Sentiment Analysis")
+            
+            blob = TextBlob(story_text)
+            polarity = blob.sentiment.polarity
+            subjectivity = blob.sentiment.subjectivity
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Polarity", f"{polarity:.3f}")
+                st.caption("Range: -1 (negative) to +1 (positive)")
+                
+                if polarity > 0.5:
+                    st.success("😊 Very Positive")
+                elif polarity > 0.1:
+                    st.info("🙂 Positive")
+                elif polarity > -0.1:
+                    st.warning("😐 Neutral")
+                elif polarity > -0.5:
+                    st.warning("🙁 Negative")
+                else:
+                    st.error("😢 Very Negative")
+            
+            with col2:
+                st.metric("Subjectivity", f"{subjectivity:.3f}")
+                st.caption("Range: 0 (objective) to 1 (subjective)")
+                
+                if subjectivity > 0.6:
+                    st.info("📝 Highly Subjective (Personal opinions)")
+                elif subjectivity > 0.3:
+                    st.info("📰 Mixed (Some opinions)")
+                else:
+                    st.info("📊 Objective (Factual)")
+            
+            with col3:
+                # Overall sentiment
+                if polarity >= 0:
+                    sentiment_emoji = "😊" if polarity > 0.3 else "🙂"
+                    sentiment_text = "Positive" if polarity > 0.3 else "Slightly Positive"
+                else:
+                    sentiment_emoji = "😢" if polarity < -0.3 else "🙁"
+                    sentiment_text = "Negative" if polarity < -0.3 else "Slightly Negative"
+                
+                st.metric("Overall Sentiment", sentiment_text)
+                st.markdown(f"### {sentiment_emoji}")
+            
+            # Sentiment by sentence
+            st.markdown("---")
+            st.markdown("**Sentiment Timeline (by sentence)**")
+            
+            sentence_polarities = [TextBlob(sent).sentiment.polarity for sent in sentences]
+            
+            fig, ax = plt.subplots(figsize=(12, 4))
+            x = range(1, len(sentence_polarities) + 1)
+            colors = ['green' if p > 0 else 'red' if p < 0 else 'gray' for p in sentence_polarities]
+            ax.bar(x, sentence_polarities, color=colors, alpha=0.7)
+            ax.axhline(y=0, color='white', linestyle='-', linewidth=0.5)
+            ax.set_xlabel('Sentence Number')
+            ax.set_ylabel('Polarity')
+            ax.set_title('Sentiment Flow Across Story')
+            ax.set_facecolor('#161b22')
+            fig.patch.set_facecolor('#0d1117')
+            ax.tick_params(colors='white')
+            ax.title.set_color('white')
+            ax.xaxis.label.set_color('white')
+            ax.yaxis.label.set_color('white')
+            for spine in ax.spines.values():
+                spine.set_edgecolor('white')
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close()
+        
+        # Tab 4: Named Entity Recognition
+        with tabs[3]:
+            st.subheader("🏷️ Named Entity Recognition")
+            
+            # Tokenize and tag
+            tokens = word_tokenize(story_text)
+            tagged = pos_tag(tokens)
+            entities = ne_chunk(tagged)
+            
+            # Extract entities
+            named_entities = []
+            for chunk in entities:
+                if isinstance(chunk, Tree):
+                    entity_text = " ".join([token for token, pos in chunk.leaves()])
+                    entity_type = chunk.label()
+                    named_entities.append((entity_text, entity_type))
+            
+            if named_entities:
+                # Group by type
+                entity_types = {}
+                for entity, etype in named_entities:
+                    if etype not in entity_types:
+                        entity_types[etype] = []
+                    entity_types[etype].append(entity)
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**Entities Found**")
+                    st.metric("Total Entities", len(named_entities))
+                    st.metric("Entity Types", len(entity_types))
+                    
+                    # Show entity type breakdown
+                    for etype, entities_list in sorted(entity_types.items()):
+                        st.write(f"**{etype}:** {len(entities_list)}")
+                
+                with col2:
+                    st.markdown("**Entity Details**")
+                    
+                    for etype, entities_list in sorted(entity_types.items()):
+                        with st.expander(f"{etype} ({len(entities_list)})"):
+                            unique_entities = list(set(entities_list))
+                            for entity in sorted(unique_entities):
+                                count = entities_list.count(entity)
+                                st.write(f"• {entity} ({count}x)")
+                
+                # Visualization
+                st.markdown("---")
+                st.markdown("**Entity Distribution**")
+                
+                fig, ax = plt.subplots(figsize=(10, 5))
+                entity_counts = {etype: len(elist) for etype, elist in entity_types.items()}
+                sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
+                
+                ax.barh([e[0] for e in sorted_entities], [e[1] for e in sorted_entities], color='#388bfd')
+                ax.set_xlabel('Count')
+                ax.set_ylabel('Entity Type')
+                ax.set_title('Named Entities by Type')
+                ax.set_facecolor('#161b22')
+                fig.patch.set_facecolor('#0d1117')
+                ax.tick_params(colors='white')
+                ax.title.set_color('white')
+                ax.xaxis.label.set_color('white')
+                ax.yaxis.label.set_color('white')
+                for spine in ax.spines.values():
+                    spine.set_edgecolor('white')
+                plt.tight_layout()
+                st.pyplot(fig)
+                plt.close()
+            else:
+                st.info("No named entities detected in this story.")
+        
+        # Tab 5: Readability
+        with tabs[4]:
+            st.subheader("📖 Readability Metrics")
+            
+            # Calculate readability scores
+            def flesch_reading_ease(text):
+                words = len([w for w in word_tokenize(text.lower()) if w.isalnum()])
+                sentences = len(sent_tokenize(text))
+                syllables = sum([max(1, len([c for c in w if c in 'aeiouAEIOU'])) for w in word_tokenize(text) if w.isalnum()])
+                
+                if words == 0 or sentences == 0:
+                    return 0
+                
+                score = 206.835 - 1.015 * (words / sentences) - 84.6 * (syllables / words)
+                return max(0, min(100, score))
+            
+            def flesch_kincaid_grade(text):
+                words = len([w for w in word_tokenize(text.lower()) if w.isalnum()])
+                sentences = len(sent_tokenize(text))
+                syllables = sum([max(1, len([c for c in w if c in 'aeiouAEIOU'])) for w in word_tokenize(text) if w.isalnum()])
+                
+                if words == 0 or sentences == 0:
+                    return 0
+                
+                score = 0.39 * (words / sentences) + 11.8 * (syllables / words) - 15.59
+                return max(0, score)
+            
+            fre_score = flesch_reading_ease(story_text)
+            fk_grade = flesch_kincaid_grade(story_text)
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Flesch Reading Ease", f"{fre_score:.1f}")
+                
+                if fre_score >= 90:
+                    st.success("Very Easy (5th grade)")
+                elif fre_score >= 80:
+                    st.info("Easy (6th grade)")
+                elif fre_score >= 70:
+                    st.info("Fairly Easy (7th grade)")
+                elif fre_score >= 60:
+                    st.info("Standard (8-9th grade)")
+                elif fre_score >= 50:
+                    st.warning("Fairly Difficult (10-12th grade)")
+                elif fre_score >= 30:
+                    st.warning("Difficult (College)")
+                else:
+                    st.error("Very Difficult (Graduate)")
+            
+            with col2:
+                st.metric("Flesch-Kincaid Grade", f"{fk_grade:.1f}")
+                st.caption(f"Suitable for grade {int(fk_grade)} and above")
+            
+            with col3:
+                # Reading time estimate
+                reading_time = word_count / 200  # Average reading speed: 200 words/min
+                st.metric("Reading Time", f"{reading_time:.1f} min")
+                st.caption("Based on 200 words/min")
+            
+            # Additional metrics
+            st.markdown("---")
+            st.markdown("**Detailed Analysis**")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write(f"**Average Syllables per Word:** {sum([max(1, len([c for c in w if c in 'aeiouAEIOU'])) for w in words if w.isalnum()]) / max(word_count, 1):.2f}")
+                st.write(f"**Average Words per Sentence:** {avg_sentence_length:.1f}")
+                st.write(f"**Longest Word Length:** {len(max((w for w in words if w.isalnum()), key=len, default=''))} characters")
+            
+            with col2:
+                # Parts of speech distribution
+                tagged_words = pos_tag([w for w in words if w.isalnum()])
+                pos_counts = Counter([tag for word, tag in tagged_words])
+                
+                st.write("**Top Parts of Speech:**")
+                for pos, count in pos_counts.most_common(5):
+                    st.write(f"• {pos}: {count} ({count/len(tagged_words)*100:.1f}%)")
+        
+        # Tab 6: Keywords
+        with tabs[5]:
+            st.subheader("🔑 Keyword Extraction")
+            
+            # Extract keywords using frequency and POS tagging
+            stop_words = set(stopwords.words('english'))
+            words_lower = [w.lower() for w in word_tokenize(story_text) if w.isalnum()]
+            
+            # Filter by POS (nouns, verbs, adjectives)
+            tagged_words = pos_tag([w for w in word_tokenize(story_text) if w.isalnum()])
+            important_tags = ['NN', 'NNS', 'NNP', 'NNPS', 'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 'JJ', 'JJR', 'JJS']
+            keywords_pos = [word.lower() for word, tag in tagged_words if tag in important_tags and word.lower() not in stop_words and len(word) > 2]
+            
+            keyword_freq = Counter(keywords_pos).most_common(20)
+            
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                st.markdown("**Top Keywords (by frequency)**")
+                
+                # Bar chart
+                fig, ax = plt.subplots(figsize=(10, 6))
+                words_list = [kw[0] for kw in keyword_freq[:15]]
+                freqs = [kw[1] for kw in keyword_freq[:15]]
+                
+                ax.barh(words_list[::-1], freqs[::-1], color='#388bfd')
+                ax.set_xlabel('Frequency')
+                ax.set_title('Top 15 Keywords')
+                ax.set_facecolor('#161b22')
+                fig.patch.set_facecolor('#0d1117')
+                ax.tick_params(colors='white')
+                ax.title.set_color('white')
+                ax.xaxis.label.set_color('white')
+                for spine in ax.spines.values():
+                    spine.set_edgecolor('white')
+                plt.tight_layout()
+                st.pyplot(fig)
+                plt.close()
+            
+            with col2:
+                st.markdown("**Keyword List**")
+                for i, (keyword, freq) in enumerate(keyword_freq, 1):
+                    st.write(f"{i}. **{keyword}** ({freq}x)")
+            
+            # Download keywords
+            st.markdown("---")
+            keywords_text = "\n".join([f"{kw}: {freq}" for kw, freq in keyword_freq])
+            st.download_button(
+                label="📥 Download Keywords",
+                data=keywords_text,
+                file_name="story_keywords.txt",
+                mime="text/plain"
+            )
+    
+    else:
+        st.info("👆 Select a sample story or enter your own text to begin analysis.")
+        st.markdown("---")
+        st.markdown("""
+        **Story Analysis Features:**
+        - ☁️ Word cloud visualization
+        - 💭 Sentiment analysis (polarity & subjectivity)
+        - 🏷️ Named entity recognition (people, places, organizations)
+        - 📖 Readability metrics (Flesch scores, grade level)
+        - 🔑 Keyword extraction with POS tagging
+        - 📊 Comprehensive text statistics
+        - 📈 Sentiment timeline across sentences
+        - 🎨 Customizable visualizations
         """)
 
 # Footer
