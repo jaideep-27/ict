@@ -1,27 +1,34 @@
-# 🎬 DataSense — Unstructured Data Explorer
+# 🔮 NexusAI Analytics Studio
 
-A comprehensive multi-modal data analysis platform built with **Streamlit** that supports Video, Text, Audio, and Image analysis with AI-powered features.
+A comprehensive multi-modal intelligence platform built with **Streamlit** featuring AI-powered Video, Text, Audio, Image, and Story analysis with cutting-edge deep learning capabilities.
 
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.40.1-FF4B4B?logo=streamlit)](https://streamlit.io)
-[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-FF4B4B?logo=streamlit)](https://streamlit.io)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
+[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.13-FF6F00?logo=tensorflow&logoColor=white)](https://tensorflow.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+## ✨ About
+
+**NexusAI Analytics Studio** is a state-of-the-art multi-modal data analysis platform with a unique cyberpunk-inspired gradient UI. Powered by advanced AI/ML libraries including TensorFlow, DeepFace, and NLTK, it provides comprehensive analysis across five data types.
 
 ## 🚀 Features Overview
 
-### 🎥 Video Analysis
+### 🎥 Video Intelligence
 - Video playback and frame extraction
 - Brightness/contrast analysis over time
 - Metadata extraction (resolution, FPS, duration)
 - Frame-by-frame processing
+- Advanced video analytics
 
-### 📝 Text Analysis
+### 📝 Text Analytics
 - Word frequency analysis with visualizations
 - Character distribution analysis
 - Sentiment analysis (polarity, subjectivity)
 - Keyword extraction with treemap visualization
 - **Text-to-Speech** (10+ languages with adjustable speed)
+- NLP-powered text processing
 
-### 🎵 Audio Analysis
+### 🎵 Audio Processing
 - Audio playback
 - Waveform visualization
 - Spectrum analysis (spectrogram)
