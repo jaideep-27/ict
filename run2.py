@@ -3,10 +3,17 @@ import pandas as pd
 from datetime import datetime
 import os
 import warnings
+import numpy as np
+from PIL import Image
+import cv2
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
 
 # Suppress specific audio library warnings
 warnings.filterwarnings('ignore', category=UserWarning, message='.*PySoundFile failed.*')
 warnings.filterwarnings('ignore', category=FutureWarning, message='.*audioread_load.*')
+warnings.filterwarnings('ignore', category=FutureWarning, message='.*deprecated.*')
+warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 # -----------------------------------------
 # Page Config
@@ -145,7 +152,7 @@ with st.sidebar:
     st.header("📂 Data Type")
     data_type = st.radio(
         "Select analysis type:",
-        ["🎥 Video Analysis", "📝 Text Analysis", "🎵 Audio Analysis"]
+        ["🎥 Video Analysis", "📝 Text Analysis", "🎵 Audio Analysis", "🖼️ Image Analysis"]
     )
     st.markdown("---")
     st.caption("Upload your unstructured data for comprehensive analysis.")
@@ -808,7 +815,7 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 # -----------------------------------------
 # Audio Analysis Section
 # -----------------------------------------
-else:  # Audio Analysis
+elif data_type == "🎵 Audio Analysis":
     st.subheader("🎵 Audio Analysis")
     
     audio_file = st.file_uploader(
@@ -1175,6 +1182,462 @@ else:  # Audio Analysis
         - 🎤 Speech-to-text transcription
         - 🎵 Music feature extraction
         - 🔊 Noise reduction
+        """)
+
+# -----------------------------------------
+# Image Analysis Section
+# -----------------------------------------
+elif data_type == "🖼️ Image Analysis":
+    st.subheader("🖼️ Image Analysis")
+    
+    # File uploader for images
+    image_file = st.file_uploader(
+        "Upload an image file",
+        type=["jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff"],
+        help="Supported formats: JPG, PNG, GIF, BMP, WebP, TIFF"
+    )
+    
+    if image_file is not None:
+        # Save uploaded image temporarily
+        image_path = f"temp_image_{image_file.name}"
+        with open(image_path, "wb") as f:
+            f.write(image_file.getbuffer())
+        
+        # Load image
+        from PIL import Image
+        import cv2
+        from rembg import remove
+        from skimage import filters, feature, color, exposure
+        import matplotlib.pyplot as plt
+        
+        image = Image.open(image_path)
+        img_array = np.array(image)
+        
+        # Display original image
+        st.image(image, caption="Original Image", use_container_width=True)
+        
+        # Image metadata
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Width", f"{image.width}px")
+        with col2:
+            st.metric("Height", f"{image.height}px")
+        with col3:
+            st.metric("Format", image.format)
+        with col4:
+            file_size_kb = len(image_file.getvalue()) / 1024
+            st.metric("Size", f"{file_size_kb:.2f} KB")
+        
+        st.markdown("---")
+        
+        # Analysis tabs
+        tabs = st.tabs([
+            "🎨 Color Analysis",
+            "✂️ Background Removal",
+            "👤 Face Analysis",
+            "🔍 Edge Detection",
+            "🎭 Filters & Effects",
+            "📊 Advanced Analysis"
+        ])
+        
+        # Tab 1: Color Analysis
+        with tabs[0]:
+            st.subheader("🎨 Color Analysis")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Color Space Analysis**")
+                # Convert to RGB if needed
+                if image.mode != 'RGB':
+                    rgb_image = image.convert('RGB')
+                else:
+                    rgb_image = image
+                
+                # Calculate color histograms
+                fig, axes = plt.subplots(3, 1, figsize=(10, 8))
+                colors = ['red', 'green', 'blue']
+                for i, color in enumerate(colors):
+                    axes[i].hist(np.array(rgb_image)[:,:,i].ravel(), bins=256, color=color, alpha=0.7)
+                    axes[i].set_title(f'{color.upper()} Channel Histogram')
+                    axes[i].set_xlim([0, 256])
+                    axes[i].set_facecolor('#161b22')
+                    axes[i].tick_params(colors='white')
+                    for spine in axes[i].spines.values():
+                        spine.set_edgecolor('white')
+                
+                fig.patch.set_facecolor('#0d1117')
+                plt.tight_layout()
+                st.pyplot(fig)
+                plt.close()
+            
+            with col2:
+                st.markdown("**Dominant Colors**")
+                # Get dominant colors using k-means
+                img_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB) if len(img_array.shape) == 3 else img_array
+                pixels = img_rgb.reshape(-1, 3)
+                
+                # Sample pixels for faster processing
+                sample_size = min(10000, len(pixels))
+                sampled_pixels = pixels[np.random.choice(len(pixels), sample_size, replace=False)]
+                
+                from sklearn.cluster import KMeans
+                n_colors = 5
+                kmeans = KMeans(n_clusters=n_colors, random_state=42, n_init=10)
+                kmeans.fit(sampled_pixels)
+                
+                # Get dominant colors
+                colors = kmeans.cluster_centers_.astype(int)
+                labels = kmeans.labels_
+                counts = np.bincount(labels)
+                
+                # Sort by frequency
+                indices = np.argsort(-counts)
+                colors = colors[indices]
+                counts = counts[indices]
+                
+                # Display color palette
+                for i, (color, count) in enumerate(zip(colors, counts)):
+                    percentage = (count / len(labels)) * 100
+                    st.markdown(f"**Color {i+1}:** {percentage:.1f}%")
+                    color_box = np.zeros((50, 200, 3), dtype=np.uint8)
+                    color_box[:] = color
+                    st.image(color_box)
+                    st.caption(f"RGB({color[0]}, {color[1]}, {color[2]})")
+            
+            # Brightness & Contrast Analysis
+            st.markdown("---")
+            st.markdown("**Brightness & Contrast Metrics**")
+            
+            gray_image = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY) if len(img_array.shape) == 3 else img_array
+            brightness = np.mean(gray_image)
+            contrast = np.std(gray_image)
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Avg Brightness", f"{brightness:.2f}")
+            with col2:
+                st.metric("Contrast (Std)", f"{contrast:.2f}")
+            with col3:
+                st.metric("Min Intensity", f"{np.min(gray_image)}")
+            with col4:
+                st.metric("Max Intensity", f"{np.max(gray_image)}")
+        
+        # Tab 2: Background Removal (using rembg)
+        with tabs[1]:
+            st.subheader("✂️ AI-Powered Background Removal")
+            st.markdown("Using **rembg** with deep learning model for accurate background removal")
+            
+            if st.button("🚀 Remove Background", key="remove_bg"):
+                with st.spinner("Processing with AI model..."):
+                    try:
+                        # Remove background using rembg
+                        with open(image_path, 'rb') as input_file:
+                            input_data = input_file.read()
+                        
+                        output_data = remove(input_data)
+                        
+                        # Save result
+                        output_path = f"temp_nobg_{image_file.name.split('.')[0]}.png"
+                        with open(output_path, 'wb') as output_file:
+                            output_file.write(output_data)
+                        
+                        # Display result
+                        st.success("✅ Background removed successfully!")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown("**Original**")
+                            st.image(image, use_container_width=True)
+                        with col2:
+                            st.markdown("**Background Removed**")
+                            result_image = Image.open(output_path)
+                            st.image(result_image, use_container_width=True)
+                        
+                        # Download button
+                        with open(output_path, "rb") as file:
+                            st.download_button(
+                                label="📥 Download Result",
+                                data=file,
+                                file_name=f"nobg_{image_file.name.split('.')[0]}.png",
+                                mime="image/png"
+                            )
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error during background removal: {str(e)}")
+            
+            st.markdown("---")
+            st.info("💡 **Tip:** The AI model works best with clear subjects and good lighting.")
+        
+        # Tab 3: Face Analysis (using DeepFace)
+        with tabs[2]:
+            st.subheader("👤 AI Face Analysis")
+            st.markdown("Using **DeepFace** for advanced facial recognition and analysis")
+            
+            if st.button("🔍 Analyze Faces", key="analyze_faces"):
+                with st.spinner("Detecting and analyzing faces..."):
+                    try:
+                        # Import DeepFace only when needed (lazy loading to avoid startup conflicts)
+                        try:
+                            from deepface import DeepFace
+                        except Exception as import_error:
+                            st.error(f"❌ DeepFace library error: {str(import_error)}")
+                            st.info("This may be a TensorFlow/Keras version conflict. Face analysis requires compatible versions.")
+                            raise
+                        
+                        # Analyze faces
+                        analysis = DeepFace.analyze(
+                            img_path=image_path,
+                            actions=['age', 'gender', 'race', 'emotion'],
+                            enforce_detection=False
+                        )
+                        
+                        if isinstance(analysis, list):
+                            analysis = analysis[0]
+                        
+                        st.success(f"✅ Detected {1 if analysis else 0} face(s)")
+                        
+                        if analysis:
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.markdown("**Demographics**")
+                                st.metric("Estimated Age", f"{analysis['age']} years")
+                                st.metric("Gender", analysis['dominant_gender'].capitalize())
+                                st.metric("Dominant Race", analysis['dominant_race'].capitalize())
+                            
+                            with col2:
+                                st.markdown("**Emotion Analysis**")
+                                emotions = analysis['emotion']
+                                sorted_emotions = sorted(emotions.items(), key=lambda x: x[1], reverse=True)
+                                
+                                for emotion, score in sorted_emotions[:3]:
+                                    st.metric(emotion.capitalize(), f"{score:.1f}%")
+                            
+                            # Emotion chart
+                            st.markdown("---")
+                            st.markdown("**Emotion Distribution**")
+                            fig, ax = plt.subplots(figsize=(10, 5))
+                            emotions_sorted = dict(sorted(emotions.items(), key=lambda x: x[1], reverse=True))
+                            ax.barh(list(emotions_sorted.keys()), list(emotions_sorted.values()), color='#388bfd')
+                            ax.set_xlabel('Confidence (%)')
+                            ax.set_facecolor('#161b22')
+                            fig.patch.set_facecolor('#0d1117')
+                            ax.tick_params(colors='white')
+                            for spine in ax.spines.values():
+                                spine.set_edgecolor('white')
+                            plt.tight_layout()
+                            st.pyplot(fig)
+                            plt.close()
+                        
+                    except Exception as e:
+                        st.warning(f"⚠️ No faces detected or error: {str(e)}")
+                        st.info("Try uploading an image with a clear, frontal face.")
+        
+        # Tab 4: Edge Detection
+        with tabs[3]:
+            st.subheader("🔍 Edge Detection")
+            
+            edge_method = st.selectbox(
+                "Select edge detection method:",
+                ["Canny", "Sobel", "Prewitt", "Roberts", "Scharr"]
+            )
+            
+            if st.button("🎯 Detect Edges", key="detect_edges"):
+                with st.spinner(f"Applying {edge_method} edge detection..."):
+                    gray = color.rgb2gray(img_array) if len(img_array.shape) == 3 else img_array
+                    
+                    if edge_method == "Canny":
+                        edges = feature.canny(gray, sigma=2)
+                    elif edge_method == "Sobel":
+                        edges = filters.sobel(gray)
+                    elif edge_method == "Prewitt":
+                        edges = filters.prewitt(gray)
+                    elif edge_method == "Roberts":
+                        edges = filters.roberts(gray)
+                    elif edge_method == "Scharr":
+                        edges = filters.scharr(gray)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("**Original (Grayscale)**")
+                        st.image(gray, use_container_width=True, clamp=True)
+                    with col2:
+                        st.markdown(f"**{edge_method} Edges**")
+                        st.image(edges, use_container_width=True, clamp=True)
+                    
+                    # Edge statistics
+                    st.markdown("---")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Edge Pixels", f"{np.sum(edges > 0.1)}")
+                    with col2:
+                        edge_percentage = (np.sum(edges > 0.1) / edges.size) * 100
+                        st.metric("Edge Coverage", f"{edge_percentage:.2f}%")
+                    with col3:
+                        st.metric("Max Edge Strength", f"{np.max(edges):.3f}")
+        
+        # Tab 5: Filters & Effects
+        with tabs[4]:
+            st.subheader("🎭 Filters & Effects")
+            
+            effect = st.selectbox(
+                "Select effect:",
+                ["Blur", "Sharpen", "Emboss", "Negative", "Sepia", "Grayscale", "Equalize Histogram", "Contrast Stretch"]
+            )
+            
+            if st.button("✨ Apply Effect", key="apply_effect"):
+                with st.spinner(f"Applying {effect}..."):
+                    result = None
+                    
+                    if effect == "Blur":
+                        from scipy.ndimage import gaussian_filter
+                        result = gaussian_filter(img_array, sigma=3)
+                    
+                    elif effect == "Sharpen":
+                        kernel = np.array([[-1,-1,-1],
+                                         [-1, 9,-1],
+                                         [-1,-1,-1]])
+                        result = cv2.filter2D(img_array, -1, kernel)
+                    
+                    elif effect == "Emboss":
+                        kernel = np.array([[-2,-1, 0],
+                                         [-1, 1, 1],
+                                         [ 0, 1, 2]])
+                        result = cv2.filter2D(img_array, -1, kernel)
+                    
+                    elif effect == "Negative":
+                        result = 255 - img_array
+                    
+                    elif effect == "Sepia":
+                        sepia_filter = np.array([[0.393, 0.769, 0.189],
+                                               [0.349, 0.686, 0.168],
+                                               [0.272, 0.534, 0.131]])
+                        result = cv2.transform(img_array, sepia_filter)
+                        result = np.clip(result, 0, 255).astype(np.uint8)
+                    
+                    elif effect == "Grayscale":
+                        result = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
+                    
+                    elif effect == "Equalize Histogram":
+                        if len(img_array.shape) == 3:
+                            result = exposure.equalize_hist(img_array)
+                        else:
+                            result = exposure.equalize_hist(img_array)
+                    
+                    elif effect == "Contrast Stretch":
+                        p2, p98 = np.percentile(img_array, (2, 98))
+                        result = exposure.rescale_intensity(img_array, in_range=(p2, p98))
+                    
+                    if result is not None:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown("**Original**")
+                            st.image(image, use_container_width=True)
+                        with col2:
+                            st.markdown(f"**{effect} Applied**")
+                            st.image(result, use_container_width=True, clamp=True)
+                        
+                        # Save and download
+                        result_path = f"temp_filtered_{image_file.name}"
+                        if len(result.shape) == 2:
+                            result_img = Image.fromarray(result.astype(np.uint8))
+                        else:
+                            result_img = Image.fromarray(result.astype(np.uint8))
+                        result_img.save(result_path)
+                        
+                        with open(result_path, "rb") as file:
+                            st.download_button(
+                                label="📥 Download Filtered Image",
+                                data=file,
+                                file_name=f"filtered_{image_file.name}",
+                                mime=f"image/{image_file.name.split('.')[-1]}"
+                            )
+        
+        # Tab 6: Advanced Analysis
+        with tabs[5]:
+            st.subheader("📊 Advanced Image Analysis")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Image Quality Metrics**")
+                
+                # Sharpness (Laplacian variance)
+                gray = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY) if len(img_array.shape) == 3 else img_array
+                laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+                st.metric("Sharpness Score", f"{laplacian_var:.2f}")
+                
+                # Entropy (information content)
+                from skimage.measure import shannon_entropy
+                entropy = shannon_entropy(gray)
+                st.metric("Entropy", f"{entropy:.3f}")
+                
+                # Signal-to-Noise Ratio
+                signal = np.mean(gray)
+                noise = np.std(gray)
+                snr = signal / noise if noise > 0 else 0
+                st.metric("SNR", f"{snr:.2f}")
+            
+            with col2:
+                st.markdown("**Image Statistics**")
+                
+                # Color mode
+                st.text(f"Color Mode: {image.mode}")
+                
+                # Aspect ratio
+                aspect_ratio = image.width / image.height
+                st.text(f"Aspect Ratio: {aspect_ratio:.3f}")
+                
+                # Total pixels
+                total_pixels = image.width * image.height
+                st.text(f"Total Pixels: {total_pixels:,}")
+                
+                # Unique colors
+                if image.mode == 'RGB':
+                    unique_colors = len(set(tuple(pixel) for pixel in pixels[:10000]))
+                    st.text(f"Unique Colors (sample): {unique_colors}")
+            
+            st.markdown("---")
+            st.markdown("**Intensity Distribution**")
+            
+            # Plot intensity histogram
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.hist(gray.ravel(), bins=256, color='#388bfd', alpha=0.7)
+            ax.set_xlabel('Pixel Intensity')
+            ax.set_ylabel('Frequency')
+            ax.set_title('Intensity Distribution')
+            ax.set_facecolor('#161b22')
+            fig.patch.set_facecolor('#0d1117')
+            ax.tick_params(colors='white')
+            for spine in ax.spines.values():
+                spine.set_edgecolor('white')
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close()
+        
+        st.markdown("---")
+        if st.button("🗑️ Clear Image", key="clear_image"):
+            if os.path.exists(image_path):
+                os.remove(image_path)
+            # Clean up temp files
+            for file in os.listdir('.'):
+                if file.startswith('temp_nobg_') or file.startswith('temp_filtered_'):
+                    os.remove(file)
+            st.rerun()
+    
+    else:
+        st.info("👆 Upload an image file to begin analysis.")
+        st.markdown("---")
+        st.markdown("""
+        **Image Analysis Features:**
+        - 🎨 Color analysis and dominant colors
+        - ✂️ AI-powered background removal (rembg)
+        - 👤 Face detection and emotion analysis (DeepFace)
+        - 🔍 Edge detection (multiple algorithms)
+        - 🎭 Image filters and effects
+        - 📊 Advanced quality metrics
+        - 📥 Download processed images
         """)
 
 # Footer
