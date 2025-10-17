@@ -19,149 +19,313 @@ warnings.filterwarnings('ignore', category=DeprecationWarning)
 # Page Config
 # -----------------------------------------
 st.set_page_config(
-    page_title="DataSense — Unstructured Data Explorer",
-    page_icon="🎬",
+    page_title="NexusAI Analytics Studio",
+    page_icon="🔮",
     layout="wide"
 )
 
 # -----------------------------------------
-# Custom Clean Dark Theme CSS
+# Custom Gradient Cyberpunk Theme CSS
 # -----------------------------------------
 st.markdown("""
 <style>
-/* General layout */
+/* Import modern font */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+/* General layout with gradient background */
 .main {
-    background-color: #0e1117;
-    color: #e6edf3;
-    font-family: "Inter", sans-serif;
+    background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+    color: #e0e0e0;
+    font-family: "Rajdhani", sans-serif;
     padding: 1.5rem 2rem;
 }
 
-/* Sidebar */
+/* Animated gradient border */
+@keyframes borderGlow {
+    0%, 100% { border-color: #00d4ff; }
+    50% { border-color: #7c3aed; }
+}
+
+/* Sidebar with neon accent */
 [data-testid="stSidebar"] {
-    background: rgba(18, 21, 27, 0.95);
-    backdrop-filter: blur(10px);
-    border-right: 1px solid #30363d;
+    background: linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+    border-right: 3px solid #00d4ff;
+    box-shadow: 4px 0 20px rgba(0, 212, 255, 0.3);
 }
 
-/* Headings */
-h1, h2, h3 {
-    color: #f0f6fc;
-    font-weight: 600;
+[data-testid="stSidebar"] > div:first-child {
+    background: transparent;
 }
+
+/* Headings with neon glow */
 h1 {
-    margin-bottom: 1rem;
+    font-family: "Orbitron", sans-serif;
+    font-weight: 900;
+    background: linear-gradient(90deg, #00d4ff 0%, #7c3aed 50%, #ff0080 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 3.2rem;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
 }
+
 h2, h3 {
-    color: #c9d1d9;
-}
-
-/* Metrics */
-div[data-testid="stMetricValue"] {
-    color: #58a6ff;
-    font-size: 1.7rem;
+    font-family: "Orbitron", sans-serif;
+    color: #00d4ff;
     font-weight: 700;
-}
-div[data-testid="stMetricLabel"] {
-    color: #9da7b2;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.6);
 }
 
-/* Tabs */
-.stTabs [data-baseweb="tab-list"] {
-    background-color: rgba(22, 27, 34, 0.8);
-    border-radius: 8px;
-    padding: 0.4rem;
-}
-.stTabs [data-baseweb="tab"] {
-    color: #8b949e;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-}
-.stTabs [data-baseweb="tab"]:hover {
-    background-color: rgba(88, 166, 255, 0.15);
-    color: #58a6ff;
-}
-.stTabs [aria-selected="true"] {
-    background-color: #161b22;
-    color: #ffffff;
+h4 {
+    color: #a78bfa;
+    font-family: "Rajdhani", sans-serif;
     font-weight: 600;
-    border-bottom: none;
 }
 
-/* Buttons */
+/* Metrics with cyberpunk styling */
+div[data-testid="stMetricValue"] {
+    color: #00ff9f;
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: "Orbitron", sans-serif;
+    text-shadow: 0 0 15px rgba(0, 255, 159, 0.8);
+}
+
+div[data-testid="stMetricLabel"] {
+    color: #9ca3af;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Tabs with neon effect */
+.stTabs [data-baseweb="tab-list"] {
+    background: rgba(15, 12, 41, 0.6);
+    border-radius: 12px;
+    padding: 0.5rem;
+    border: 2px solid rgba(0, 212, 255, 0.3);
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.2);
+}
+
+.stTabs [data-baseweb="tab"] {
+    color: #9ca3af;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    font-family: "Rajdhani", sans-serif;
+    padding: 0.7rem 1.5rem;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(124, 58, 237, 0.2));
+    color: #00d4ff;
+    transform: translateY(-2px);
+}
+
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%);
+    color: #ffffff;
+    font-weight: 700;
+    border: none;
+    box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+}
+
+/* Buttons with gradient and glow */
 .stButton button, .stDownloadButton button {
-    background: #1f6feb;
+    background: linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%);
     color: white;
     border: none;
-    border-radius: 6px;
-    padding: 0.6rem 1.2rem;
-    font-weight: 600;
-}
-.stButton button:hover, .stDownloadButton button:hover {
-    background: #388bfd;
+    border-radius: 8px;
+    padding: 0.7rem 1.5rem;
+    font-weight: 700;
+    font-family: "Rajdhani", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 20px rgba(0, 212, 255, 0.4);
+    transition: all 0.3s ease;
 }
 
-/* File uploader */
+.stButton button:hover, .stDownloadButton button:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #ff0080 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(124, 58, 237, 0.6);
+}
+
+/* File uploader with neon border */
 [data-testid="stFileUploader"] {
-    background-color: rgba(22,27,34,0.6);
+    background: rgba(15, 12, 41, 0.5);
+    border: 2px solid #00d4ff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+}
+
+/* Text inputs with cyberpunk style */
+textarea, input {
+    background: rgba(15, 12, 41, 0.7) !important;
+    color: #e0e0e0 !important;
+    border: 2px solid #7c3aed !important;
+    border-radius: 8px !important;
+    font-family: "Rajdhani", sans-serif !important;
+}
+
+textarea:focus, input:focus {
+    border-color: #00d4ff !important;
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.4) !important;
+}
+
+/* Info boxes with gradient */
+.stAlert {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(124, 58, 237, 0.1));
+    border: 2px solid #00d4ff;
     border-radius: 8px;
+    color: #e0e0e0;
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+}
+
+/* Enhanced Cards */
+.analysis-card {
+    background: linear-gradient(135deg, rgba(15, 12, 41, 0.8), rgba(36, 36, 62, 0.8));
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px solid rgba(124, 58, 237, 0.4);
+    margin-bottom: 1rem;
+    box-shadow: 0 8px 25px rgba(124, 58, 237, 0.2);
+    transition: all 0.3s ease;
+}
+
+.analysis-card:hover {
+    border-color: #00d4ff;
+    box-shadow: 0 8px 30px rgba(0, 212, 255, 0.3);
+    transform: translateY(-3px);
+}
+
+/* Text styling */
+p, span, div, li {
+    color: #e0e0e0;
+}
+
+/* Selectbox */
+div[data-baseweb="select"] {
+    background: rgba(15, 12, 41, 0.7);
+    border: 2px solid #7c3aed;
+    border-radius: 8px;
+}
+
+/* Radio buttons */
+div[role="radiogroup"] label {
+    background: rgba(15, 12, 41, 0.5);
+    border: 2px solid rgba(124, 58, 237, 0.3);
+    border-radius: 8px;
+    padding: 0.8rem;
+    margin: 0.3rem 0;
+    transition: all 0.3s ease;
+}
+
+div[role="radiogroup"] label:hover {
+    border-color: #00d4ff;
+    background: rgba(0, 212, 255, 0.1);
+}
+
+/* Sliders */
+div[data-testid="stSlider"] {
     padding: 1rem;
 }
 
-/* Text area */
-textarea {
-    background-color: #161b22 !important;
-    color: #e6edf3 !important;
-    border: 1px solid #30363d !important;
-    border-radius: 6px !important;
+/* Success message */
+.stSuccess {
+    background: linear-gradient(135deg, rgba(0, 255, 159, 0.1), rgba(0, 212, 255, 0.1));
+    border: 2px solid #00ff9f;
+    border-radius: 8px;
 }
 
-/* Info boxes */
-.stAlert {
-    background-color: rgba(56, 139, 253, 0.1);
-    border: 1px solid #388bfd;
-    border-radius: 6px;
-    color: #e6edf3;
+/* Warning message */
+.stWarning {
+    background: linear-gradient(135deg, rgba(255, 170, 0, 0.1), rgba(255, 0, 128, 0.1));
+    border: 2px solid #ffaa00;
+    border-radius: 8px;
 }
 
-/* Cards */
-.analysis-card {
-    background: rgba(22,27,34,0.8);
-    border-radius: 10px;
-    padding: 1.5rem;
-    border: 1px solid #30363d;
-    margin-bottom: 1rem;
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
 }
 
-p, span, div, li {
-    color: #e6edf3;
+::-webkit-scrollbar-track {
+    background: #0a0e27;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #00d4ff, #7c3aed);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #7c3aed, #ff0080);
+}
+
+/* Caption text */
+.css-1629p8f, [data-testid="stCaptionContainer"] {
+    color: #9ca3af !important;
+    font-style: italic;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # -----------------------------------------
-# Header
+# Header with Custom Branding
 # -----------------------------------------
-st.title("🎬 DataSense — Unstructured Data Explorer")
-st.caption("Analyze video, text, and audio data with advanced processing and insights.")
+st.markdown("""
+    <div style="text-align: center; padding: 1rem 0 2rem 0;">
+        <h1 style="margin: 0; font-size: 3.5rem;">🔮 NexusAI Analytics Studio</h1>
+        <p style="font-size: 1.2rem; color: #9ca3af; margin-top: 0.5rem; font-family: 'Rajdhani', sans-serif;">
+            <strong>Multi-Modal Intelligence Platform</strong> • Advanced Video • Text • Audio • Image • Story Analysis
+        </p>
+    </div>
+""", unsafe_allow_html=True)
 
 # -----------------------------------------
-# Sidebar
+# Sidebar with Enhanced Design
 # -----------------------------------------
 with st.sidebar:
-    st.header("📂 Data Type")
-    data_type = st.radio(
-        "Select analysis type:",
-        ["🎥 Video Analysis", "📝 Text Analysis", "🎵 Audio Analysis", "🖼️ Image Analysis", "📖 Story Analysis"]
-    )
+    st.markdown("""
+        <div style="text-align: center; padding: 1rem 0;">
+            <h2 style="color: #00d4ff; font-family: 'Orbitron', sans-serif; font-size: 1.8rem;">⚡ Control Panel</h2>
+        </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown("---")
-    st.caption("Upload your unstructured data for comprehensive analysis.")
+    
+    data_type = st.radio(
+        "🎯 Select Analysis Mode:",
+        ["🎥 Video Intelligence", "📝 Text Analytics", "🎵 Audio Processing", "🖼️ Image Vision", "📖 Story Insights"],
+        help="Choose your data analysis type"
+    )
+    
+    st.markdown("---")
+    
+    st.markdown("""
+        <div style="background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(124, 58, 237, 0.1)); 
+                    padding: 1rem; border-radius: 8px; border: 2px solid rgba(0, 212, 255, 0.3);">
+            <p style="font-size: 0.9rem; margin: 0; color: #9ca3af;">
+                💡 <strong>Tip:</strong> Upload your multi-modal data for AI-powered comprehensive analysis
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
 # -----------------------------------------
-# Video Analysis Section
+# Video Intelligence Section
 # -----------------------------------------
-if data_type == "🎥 Video Analysis":
-    st.subheader("🎥 Video Analysis")
+if data_type == "🎥 Video Intelligence":
+    st.markdown("""
+        <div style="background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(124, 58, 237, 0.1)); 
+                    padding: 1.5rem; border-radius: 12px; border: 2px solid #00d4ff; margin-bottom: 2rem;">
+            <h2 style="color: #00d4ff; font-family: 'Orbitron', sans-serif; margin: 0;">🎥 Video Intelligence Hub</h2>
+            <p style="color: #9ca3af; margin-top: 0.5rem;">AI-Powered Video Analysis & Frame Processing</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # File uploader for video
     video_file = st.file_uploader(
@@ -402,10 +566,16 @@ if data_type == "🎥 Video Analysis":
         """)
 
 # -----------------------------------------
-# Text Analysis Section
+# Text Analytics Section
 # -----------------------------------------
-elif data_type == "📝 Text Analysis":
-    st.subheader("📝 Text Analysis")
+elif data_type == "📝 Text Analytics":
+    st.markdown("""
+        <div style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(255, 0, 128, 0.1)); 
+                    padding: 1.5rem; border-radius: 12px; border: 2px solid #7c3aed; margin-bottom: 2rem;">
+            <h2 style="color: #a78bfa; font-family: 'Orbitron', sans-serif; margin: 0;">📝 Text Analytics Engine</h2>
+            <p style="color: #9ca3af; margin-top: 0.5rem;">NLP-Powered Text Processing & Sentiment Analysis</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Input method selection
     input_method = st.radio("Choose input method:", ["📄 Upload Text File", "✍️ Enter Text Manually"])
@@ -813,10 +983,16 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         """)
 
 # -----------------------------------------
-# Audio Analysis Section
+# Audio Processing Section
 # -----------------------------------------
-elif data_type == "🎵 Audio Analysis":
-    st.subheader("🎵 Audio Analysis")
+elif data_type == "🎵 Audio Processing":
+    st.markdown("""
+        <div style="background: linear-gradient(135deg, rgba(0, 255, 159, 0.1), rgba(0, 212, 255, 0.1)); 
+                    padding: 1.5rem; border-radius: 12px; border: 2px solid #00ff9f; margin-bottom: 2rem;">
+            <h2 style="color: #00ff9f; font-family: 'Orbitron', sans-serif; margin: 0;">🎵 Audio Processing Lab</h2>
+            <p style="color: #9ca3af; margin-top: 0.5rem;">Spectral Analysis & Speech Recognition</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     audio_file = st.file_uploader(
         "Upload an audio file",
@@ -1185,10 +1361,16 @@ elif data_type == "🎵 Audio Analysis":
         """)
 
 # -----------------------------------------
-# Image Analysis Section
+# Image Vision Section
 # -----------------------------------------
-elif data_type == "🖼️ Image Analysis":
-    st.subheader("🖼️ Image Analysis")
+elif data_type == "🖼️ Image Vision":
+    st.markdown("""
+        <div style="background: linear-gradient(135deg, rgba(255, 0, 128, 0.1), rgba(124, 58, 237, 0.1)); 
+                    padding: 1.5rem; border-radius: 12px; border: 2px solid #ff0080; margin-bottom: 2rem;">
+            <h2 style="color: #ff0080; font-family: 'Orbitron', sans-serif; margin: 0;">🖼️ Image Vision Studio</h2>
+            <p style="color: #9ca3af; margin-top: 0.5rem;">Deep Learning Image Analysis & Computer Vision</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # File uploader for images
     image_file = st.file_uploader(
@@ -1707,10 +1889,16 @@ elif data_type == "🖼️ Image Analysis":
         """)
 
 # -----------------------------------------
-# Story Analysis Section
+# Story Insights Section
 # -----------------------------------------
-elif data_type == "📖 Story Analysis":
-    st.subheader("📖 Story Analysis with NLP")
+elif data_type == "📖 Story Insights":
+    st.markdown("""
+        <div style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(0, 212, 255, 0.1)); 
+                    padding: 1.5rem; border-radius: 12px; border: 2px solid #a78bfa; margin-bottom: 2rem;">
+            <h2 style="color: #a78bfa; font-family: 'Orbitron', sans-serif; margin: 0;">📖 Story Insights Platform</h2>
+            <p style="color: #9ca3af; margin-top: 0.5rem;">Advanced NLP Story Analysis & Narrative Intelligence</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Hardcoded sample stories
     SAMPLE_STORIES = {
@@ -1818,10 +2006,10 @@ elif data_type == "📖 Story Analysis":
             from collections import Counter
             import re
             
-            # Download required NLTK data with fallback
+            # Download required NLTK data with fallback for version compatibility
             with st.spinner("Checking NLTK data..."):
                 try:
-                    # Try punkt_tab first (newer NLTK), fallback to punkt (older NLTK)
+                    # Punkt tokenizer (try new version first, fallback to old)
                     try:
                         nltk.data.find('tokenizers/punkt_tab')
                     except LookupError:
@@ -1831,24 +2019,41 @@ elif data_type == "📖 Story Analysis":
                             try:
                                 nltk.download('punkt', quiet=True)
                             except:
-                                st.warning("Could not download punkt tokenizer. Some features may not work.")
+                                pass
                     
-                    # Download other required data with error handling
-                    required_data = [
-                        'averaged_perceptron_tagger',
-                        'maxent_ne_chunker',
-                        'words',
-                        'stopwords'
-                    ]
+                    # POS tagger (try new version first, fallback to old)
+                    try:
+                        nltk.data.find('taggers/averaged_perceptron_tagger_eng')
+                    except LookupError:
+                        try:
+                            nltk.download('averaged_perceptron_tagger_eng', quiet=True)
+                        except:
+                            try:
+                                nltk.download('averaged_perceptron_tagger', quiet=True)
+                            except:
+                                pass
                     
-                    for package in required_data:
+                    # NE chunker (try new version first, fallback to old)
+                    try:
+                        nltk.data.find('chunkers/maxent_ne_chunker_tab')
+                    except LookupError:
+                        try:
+                            nltk.download('maxent_ne_chunker_tab', quiet=True)
+                        except:
+                            try:
+                                nltk.download('maxent_ne_chunker', quiet=True)
+                            except:
+                                pass
+                    
+                    # Other required data
+                    for package in ['words', 'stopwords']:
                         try:
                             nltk.download(package, quiet=True)
                         except:
-                            pass  # Continue even if some packages fail
+                            pass
                             
                 except Exception as e:
-                    st.warning(f"Some NLTK data could not be downloaded. Analysis may be limited.")
+                    st.warning("Some NLTK data could not be downloaded. Analysis may be limited.")
             
             from nltk.corpus import stopwords
             from nltk.tokenize import word_tokenize, sent_tokenize
